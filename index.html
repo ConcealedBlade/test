@@ -842,7 +842,7 @@ function render() {
             <div class="avatar-wrap">
                 <img class="avatar" loading="lazy"
                      src="\${escapeHtml(imgUrl(h))}"
-                     onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='\${escapeHtml(backupUrl(h))}';}else{this.onerror=null;this.style.opacity='0';this.parentNode.style.background='#222';this.parentNode.innerHTML+='<div style=&quot;color:#777;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:bold;&quot;>暂无图</div>';}">
+                     onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='\${escapeHtml(backupUrl(h))}';}else{this.onerror=null;this.style.opacity='0';this.parentNode.style.background='#222';this.parentNode.innerHTML+='<div style=&quot;color:#777;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;&quot;>暂无图</div>';}">
                 \${h.updateTime === 'recent' ? '<div class="recent-tag">NEW</div>' : ''}
             </div>
             <div class="name">\${escapeHtml(h.fullName)}</div>
