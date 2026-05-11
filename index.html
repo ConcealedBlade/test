@@ -337,10 +337,12 @@
                 最近更新
             </label>
 
+            <button class="btn btn-danger" onclick="clearSelected()">清空选择</button>
             <button class="btn btn-primary" onclick="downloadSelectedJson()">导出JSON</button>
+            <button class="btn" onclick="triggerImportJson()">导入JSON</button>
+            <input type="file" id="importJsonInput" accept=".json,application/json" style="display:none;">
             <button class="btn" onclick="openSelectedPage()">打开已选网页</button>
             <button class="btn" onclick="downloadSelectedHtml()">下载HTML</button>
-            <button class="btn btn-danger" onclick="clearSelected()">清空选择</button>
 
             <div class="selected-info" id="selectedInfo">已选 0 个</div>
         </div>
@@ -900,7 +902,9 @@ function downloadSelectedHtml() {
 
 document.getElementById('searchInput').addEventListener('input', render);
 document.getElementById('recentCheck').addEventListener('change', render);
-
+document.getElementById('importJsonInput').addEventListener('change', function () {
+    importSelectedJsonFile(this.files[0]);
+});
 buildFilterUI();
 render();
 
@@ -922,6 +926,132 @@ function downloadSelectedJson() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function triggerImportJson() {
+    const input = document.getElementById('importJsonInput');
+
+    // 允许连续导入同一个文件
+    input.value = '';
+
+    input.click();
+}
+
+function normalizeImportedIds(data) {
+    /**
+     * 支持以下几种格式：
+     *
+     * 1. 当前工具导出的数组：
+     * [
+     *   { "id": "1", "fullName": "刘备" },
+     *   { "id": "2", "fullName": "关羽" }
+     * ]
+     *
+     * 2. id 数组：
+     * ["1", "2", "3"]
+     *
+     * 3. 对象格式：
+     * {
+     *   "selectedIds": ["1", "2", "3"]
+     * }
+     *
+     * 4. 对象格式：
+     * {
+     *   "heroes": [
+     *      { "id": "1" },
+     *      { "id": "2" }
+     *   ]
+     * }
+     */
+
+    let arr = [];
+
+    if (Array.isArray(data)) {
+        arr = data;
+    } else if (data && Array.isArray(data.selectedIds)) {
+        arr = data.selectedIds;
+    } else if (data && Array.isArray(data.heroes)) {
+        arr = data.heroes;
+    } else if (data && Array.isArray(data.selectedHeroes)) {
+        arr = data.selectedHeroes;
+    } else {
+        throw new Error('JSON 格式不正确');
+    }
+
+    return arr
+        .map(item => {
+            if (typeof item === 'string' || typeof item === 'number') {
+                return String(item);
+            }
+
+            if (item && item.id != null) {
+                return String(item.id);
+            }
+
+            return null;
+        })
+        .filter(Boolean);
+}
+
+function importSelectedJsonFile(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function () {
+        try {
+            const text = String(reader.result || '').trim();
+
+            if (!text) {
+                alert('JSON 文件为空');
+                return;
+            }
+
+            const data = JSON.parse(text);
+            const ids = normalizeImportedIds(data);
+
+            if (!ids.length) {
+                alert('JSON 中没有找到可导入的武将 id');
+                return;
+            }
+
+            const validHeroIdSet = new Set(heroes.map(h => String(h.id)));
+
+            let importedCount = 0;
+            let ignoredCount = 0;
+
+            // 导入后完全以 JSON 为准：先清空当前选择
+            selectedIds.clear();
+
+            ids.forEach(id => {
+                id = String(id);
+
+                if (validHeroIdSet.has(id)) {
+                    selectedIds.add(id);
+                    importedCount++;
+                } else {
+                    ignoredCount++;
+                }
+            });
+
+            render();
+
+            alert(
+                `导入完成\n` +
+                `当前已选：${selectedIds.size} 个\n` +
+                `成功导入：${importedCount} 个\n` +
+                `无效或不存在的 id：${ignoredCount} 个`
+            );
+        } catch (err) {
+            console.error(err);
+            alert('导入失败：JSON 格式错误或文件内容不兼容');
+        }
+    };
+
+    reader.onerror = function () {
+        alert('读取文件失败');
+    };
+
+    reader.readAsText(file, 'utf-8');
 }
 </script>
 
