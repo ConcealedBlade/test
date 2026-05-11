@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OL武将筛选导出工具</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --gold: #d4af37;
+            --gold-dark: #aa8c2c;
+            --text-main: #e0e0e0;
+            --border: #333;
+            --selected: #1d5f3a;
+            --danger: #8b0000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            background-image: radial-gradient(circle at center, #2a2a2a 0%, #121212 100%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: "Microsoft YaHei", sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(18, 18, 18, 0.96);
+            border-bottom: 2px solid var(--gold-dark);
+            padding: 14px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+        }
+
+        .inner {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 180px;
+            padding: 11px 14px;
+            background: #252525;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 8px;
+            outline: none;
+            font-size: 15px;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--gold);
+        }
+
+        .check-label {
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-area {
+            margin-top: 12px;
+        }
+
+        .group-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 9px;
+            align-items: center;
+        }
+
+        .filter-label {
+            color: #888;
+            font-size: 13px;
+            margin-right: 4px;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .btn,
+        .filter-btn {
+            border: 1px solid #444;
+            background: #252525;
+            color: #e0e0e0;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: 0.2s;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 9px 13px;
+            font-size: 14px;
+        }
+
+        .btn:hover,
+        .filter-btn:hover,
+        .filter-btn.active {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: #333;
+        }
+
+        .btn-primary {
+            border-color: var(--gold-dark);
+            color: var(--gold);
+        }
+
+        .btn-danger:hover {
+            border-color: #c33;
+            color: #ff7777;
+        }
+
+        .selected-info {
+            color: var(--gold);
+            font-weight: bold;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
+        .sub-filter {
+            display: none;
+            padding-top: 8px;
+            border-top: 1px solid #333;
+        }
+
+        .grid {
+            display: grid;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 22px 20px;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            color: inherit;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.25s;
+            position: relative;
+            user-select: none;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .avatar-wrap {
+            width: 100px;
+            height: 100px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #333;
+            background: #000;
+            position: relative;
+            transition: 0.25s;
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card:hover .avatar-wrap {
+            border-color: var(--gold);
+        }
+
+        .card.selected .avatar-wrap {
+            border-color: #39d17d;
+            box-shadow: 0 0 16px rgba(57, 209, 125, 0.65);
+        }
+
+        .card.selected .avatar-wrap::after {
+            content: "已选";
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background: rgba(29, 95, 58, 0.92);
+            color: #fff;
+            font-size: 12px;
+            text-align: center;
+            padding: 3px 0;
+            font-weight: bold;
+        }
+
+        .name {
+            margin-top: 9px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .meta {
+            margin-top: 3px;
+            color: #888;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .recent-tag {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--danger);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 0 0 0 8px;
+            z-index: 2;
+        }
+
+        .empty {
+            max-width: 1400px;
+            margin: 60px auto;
+            text-align: center;
+            color: #888;
+            font-size: 15px;
+        }
+
+        .footer {
+            text-align: center;
+            color: #888;
+            padding: 30px 20px;
+            border-top: 1px solid #333;
+            margin-top: 30px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .top-bar {
+                padding: 10px 12px;
+            }
+
+            .search-row {
+                gap: 8px;
+            }
+
+            input[type="text"] {
+                padding: 9px 12px;
+                font-size: 14px;
+            }
+
+            .filter-area {
+                overflow: hidden;
+            }
+
+            .group-row {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 5px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .group-row::-webkit-scrollbar {
+                display: none;
+            }
+
+            .filter-btn,
+            .btn {
+                flex-shrink: 0;
+                font-size: 13px;
+                padding: 6px 10px;
+            }
+
+            .selected-info {
+                width: 100%;
+                margin-left: 0;
+                font-size: 13px;
+            }
+
+            .grid {
+                grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+                gap: 13px;
+                padding: 15px 12px;
+            }
+
+            .avatar-wrap {
+                width: 85px;
+                height: 85px;
+                border-radius: 10px;
+            }
+
+            .name {
+                font-size: 12px;
+                margin-top: 6px;
+            }
+
+            .meta {
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="inner">
+        <div class="search-row">
+            <input type="text" id="searchInput" placeholder="搜索武将名称 / 拼音 / 首字母...">
+
+            <label class="check-label">
+                <input type="checkbox" id="recentCheck">
+                最近更新
+            </label>
+
+            <button class="btn btn-primary" onclick="openSelectedPage()">打开已选网页</button>
+            <button class="btn btn-primary" onclick="downloadSelectedHtml()">下载HTML</button>
+            <button class="btn" onclick="copySelectedJson()">复制JSON</button>
+            <button class="btn btn-danger" onclick="clearSelected()">清空选择</button>
+
+            <div class="selected-info" id="selectedInfo">已选 0 个</div>
+        </div>
+
+        <div class="filter-area">
+            <div class="group-row" id="qualityBox">
+                <span class="filter-label">品质</span>
+                <div class="filter-btn active" onclick="filterQuality('all', this)">全部</div>
+                <div class="filter-btn" onclick="filterQuality('普通', this)">普通</div>
+                <div class="filter-btn" onclick="filterQuality('稀有', this)">稀有</div>
+                <div class="filter-btn" onclick="filterQuality('史诗', this)">史诗</div>
+                <div class="filter-btn" onclick="filterQuality('传说', this)">传说</div>
+                <div class="filter-btn" onclick="filterQuality('限定', this)">限定</div>
+            </div>
+
+            <div class="group-row" id="bigLampBox">
+                <span class="filter-label">将灯</span>
+                <div class="filter-btn active" onclick="filterBig('all', this)">全部</div>
+            </div>
+
+            <div class="group-row sub-filter" id="subLampBox"></div>
+        </div>
+    </div>
+</div>
+
+<div class="grid" id="heroGrid"></div>
+<div class="empty" id="emptyBox" style="display:none;">没有符合条件的武将</div>
+
+<div class="footer">
+    OL武将筛选导出工具 · 点击武将卡片即可加入或取消选择
+</div>
+
+<script src="https://unpkg.com/pinyin-pro"></script>
+
+<script>
+/**
+ * 你只需要把完整武将列表填到这里。
+ * 格式沿用原网页 heroesRaw。
+ *
+ * 示例：
+ * const heroesRaw = [
+ *   {"id":"1","useId":"1","fullName":"刘备","faction":"蜀","origFaction":null,"jiangdeng":null,"exType":1,"genItemType":0,"updateTime":"old","quality":"普通"},
+ *   {"id":"2","useId":"2","fullName":"关羽","faction":"蜀","origFaction":null,"jiangdeng":null,"exType":1,"genItemType":0,"updateTime":"old","quality":"普通"}
+ * ];
+ */
+const heroesRaw = [{"id": "1", "useId": "1", "fullName": "刘备", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2", "useId": "2", "fullName": "关羽", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "3", "useId": "3", "fullName": "张飞", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "4", "useId": "4", "fullName": "诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "5", "useId": "5", "fullName": "赵云", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "6", "useId": "6", "fullName": "马超", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "7", "useId": "7", "fullName": "黄月英", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "8", "useId": "8", "fullName": "孙权", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "9", "useId": "9", "fullName": "甘宁", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "10", "useId": "10", "fullName": "吕蒙", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "11", "useId": "11", "fullName": "黄盖", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "12", "useId": "12", "fullName": "周瑜", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "13", "useId": "13", "fullName": "大乔", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "14", "useId": "14", "fullName": "陆逊", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "15", "useId": "15", "fullName": "曹操", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "16", "useId": "16", "fullName": "司马懿", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "17", "useId": "17", "fullName": "夏侯惇", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "18", "useId": "18", "fullName": "张辽", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "19", "useId": "19", "fullName": "许褚", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "20", "useId": "20", "fullName": "郭嘉", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "21", "useId": "21", "fullName": "甄姬", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "22", "useId": "22", "fullName": "华佗", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "23", "useId": "23", "fullName": "吕布", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "24", "useId": "24", "fullName": "貂蝉", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "25", "useId": "25", "fullName": "孙尚香", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "26", "useId": "26", "fullName": "界黄忠", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-风", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "27", "useId": "27", "fullName": "魏延", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "28", "useId": "28", "fullName": "夏侯渊", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "29", "useId": "29", "fullName": "曹仁", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "30", "useId": "30", "fullName": "小乔", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "31", "useId": "31", "fullName": "周泰", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "32", "useId": "32", "fullName": "张角", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "33", "useId": "33", "fullName": "于吉", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "34", "useId": "34", "fullName": "典韦", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "35", "useId": "35", "fullName": "荀彧", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "36", "useId": "36", "fullName": "庞统", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "37", "useId": "37", "fullName": "卧龙诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "38", "useId": "38", "fullName": "太史慈", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "39", "useId": "39", "fullName": "庞德", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "40", "useId": "40", "fullName": "颜良文丑", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "41", "useId": "41", "fullName": "袁绍", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 5, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "42", "useId": "42", "fullName": "徐晃", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "43", "useId": "43", "fullName": "曹丕", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "44", "useId": "44", "fullName": "孙坚", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "45", "useId": "45", "fullName": "董卓", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "46", "useId": "46", "fullName": "祝融", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "47", "useId": "47", "fullName": "孟获", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "48", "useId": "48", "fullName": "贾诩", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "49", "useId": "49", "fullName": "鲁肃", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 6, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "50", "useId": "50", "fullName": "张郃", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "51", "useId": "51", "fullName": "邓艾", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "52", "useId": "52", "fullName": "姜维", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "53", "useId": "53", "fullName": "刘禅", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "54", "useId": "54", "fullName": "孙策", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "55", "useId": "55", "fullName": "张昭张纮", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "56", "useId": "56", "fullName": "左慈", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "57", "useId": "57", "fullName": "蔡文姬", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 7, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "60", "useId": "123", "fullName": "诸葛瑾", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 18, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "61", "useId": "61", "fullName": "黄忠", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "72", "useId": "72", "fullName": "伏完", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "73", "useId": "73", "fullName": "刘协", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "74", "useId": "74", "fullName": "灵雎", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "100", "useId": "100", "fullName": "袁术", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "101", "useId": "101", "fullName": "公孙瓒", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "102", "useId": "102", "fullName": "SP貂蝉", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "103", "useId": "103", "fullName": "SP孙尚香", "faction": "蜀", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "104", "useId": "104", "fullName": "杨修", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "105", "useId": "105", "fullName": "SP庞德", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "106", "useId": "106", "fullName": "SP关羽", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "107", "useId": "107", "fullName": "SP马超", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "108", "useId": "108", "fullName": "SP赵云", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "109", "useId": "109", "fullName": "SP貂蝉", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "110", "useId": "110", "fullName": "SP贾诩", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "111", "useId": "111", "fullName": "SP曹仁", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "112", "useId": "112", "fullName": "SP蔡文姬", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "113", "useId": "113", "fullName": "陈琳", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "114", "useId": "114", "fullName": "曹洪", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "115", "useId": "115", "fullName": "关银屏", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "116", "useId": "116", "fullName": "夏侯霸", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "117", "useId": "117", "fullName": "大乔小乔", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "118", "useId": "118", "fullName": "诸葛恪", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "119", "useId": "119", "fullName": "张宝", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "121", "useId": "121", "fullName": "乐进", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "122", "useId": "122", "fullName": "曹昂", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "123", "useId": "123", "fullName": "诸葛瑾", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "124", "useId": "124", "fullName": "张星彩", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "125", "useId": "125", "fullName": "祖茂", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "126", "useId": "126", "fullName": "丁奉", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "127", "useId": "127", "fullName": "潘凤", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "128", "useId": "128", "fullName": "马良", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "129", "useId": "129", "fullName": "诸葛诞", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "130", "useId": "130", "fullName": "程昱", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "131", "useId": "131", "fullName": "何太后", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "135", "useId": "135", "fullName": "孙鲁育", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "136", "useId": "136", "fullName": "文聘", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "137", "useId": "137", "fullName": "孙皓", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "138", "useId": "138", "fullName": "SP孙尚香", "faction": "蜀", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "139", "useId": "139", "fullName": "SP姜维", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "140", "useId": "140", "fullName": "兀突骨", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "151", "useId": "151", "fullName": "曹植", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 10, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "152", "useId": "152", "fullName": "高顺", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 10, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "153", "useId": "153", "fullName": "陈宫", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "155", "useId": "155", "fullName": "凌统", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "156", "useId": "156", "fullName": "马谡", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "157", "useId": "157", "fullName": "吴国太", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "158", "useId": "158", "fullName": "徐盛", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "160", "useId": "160", "fullName": "于禁", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "161", "useId": "161", "fullName": "张春华", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "162", "useId": "162", "fullName": "曹彰", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "164", "useId": "164", "fullName": "荀攸", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "166", "useId": "166", "fullName": "廖化", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "167", "useId": "167", "fullName": "马岱", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "168", "useId": "168", "fullName": "步练师", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "169", "useId": "169", "fullName": "程普", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "170", "useId": "170", "fullName": "韩当", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "171", "useId": "171", "fullName": "将华雄", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "172", "useId": "172", "fullName": "刘表", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "173", "useId": "173", "fullName": "钟会", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "174", "useId": "174", "fullName": "曹冲", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "175", "useId": "175", "fullName": "郭淮", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "176", "useId": "176", "fullName": "满宠", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "177", "useId": "177", "fullName": "关平", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "178", "useId": "178", "fullName": "简雍", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "179", "useId": "179", "fullName": "刘封", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "180", "useId": "180", "fullName": "潘璋马忠", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "181", "useId": "181", "fullName": "虞翻", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "182", "useId": "182", "fullName": "朱然", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "183", "useId": "183", "fullName": "伏皇后", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "184", "useId": "184", "fullName": "李儒", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 25, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "185", "useId": "185", "fullName": "法正", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "186", "useId": "186", "fullName": "徐庶", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 11, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "187", "useId": "187", "fullName": "王异", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "188", "useId": "188", "fullName": "关兴张苞", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 20, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "201", "useId": "201", "fullName": "神关羽", "faction": "神", "origFaction": "蜀", "jiangdeng": null, "exType": 14, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "202", "useId": "202", "fullName": "神吕蒙", "faction": "神", "origFaction": "吴", "jiangdeng": null, "exType": 14, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "203", "useId": "203", "fullName": "神周瑜", "faction": "神", "origFaction": "吴", "jiangdeng": null, "exType": 15, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "204", "useId": "204", "fullName": "神诸葛亮", "faction": "神", "origFaction": "蜀", "jiangdeng": null, "exType": 15, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "205", "useId": "205", "fullName": "神曹操", "faction": "神", "origFaction": "魏", "jiangdeng": null, "exType": 16, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "206", "useId": "206", "fullName": "神吕布", "faction": "神", "origFaction": "群", "jiangdeng": null, "exType": 16, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "207", "useId": "207", "fullName": "神赵云", "faction": "神", "origFaction": "蜀", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "208", "useId": "208", "fullName": "神司马懿", "faction": "神", "origFaction": "魏", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "210", "useId": "210", "fullName": "周泰", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "211", "useId": "211", "fullName": "于吉", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "212", "useId": "212", "fullName": "张角", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 4, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "214", "useId": "214", "fullName": "华雄", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "215", "useId": "215", "fullName": "袁术", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 1, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "220", "useId": "220", "fullName": "神刘备", "faction": "神", "origFaction": "蜀", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "221", "useId": "221", "fullName": "神陆逊", "faction": "神", "origFaction": "吴", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "222", "useId": "222", "fullName": "神曹丕", "faction": "神", "origFaction": "魏", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "223", "useId": "223", "fullName": "神甄姬", "faction": "神", "origFaction": "魏", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "224", "useId": "224", "fullName": "神甘宁", "faction": "神", "origFaction": "吴", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "225", "useId": "225", "fullName": "神张辽", "faction": "神", "origFaction": "魏", "jiangdeng": null, "exType": 17, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "229", "useId": "229", "fullName": "神典韦", "faction": "神", "origFaction": "魏", "jiangdeng": null, "exType": 14, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "299", "useId": "299", "fullName": "界刘备", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-贤明君主", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "300", "useId": "300", "fullName": "界关羽", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-蜀汉虎将", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "301", "useId": "301", "fullName": "界张飞", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-蜀汉虎将", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "302", "useId": "302", "fullName": "界赵云", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-蜀汉虎将", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "303", "useId": "303", "fullName": "界马超", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-蜀汉虎将", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "304", "useId": "304", "fullName": "界徐庶", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "305", "useId": "305", "fullName": "界甘宁", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "306", "useId": "306", "fullName": "界吕蒙", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "307", "useId": "307", "fullName": "界黄盖", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "308", "useId": "308", "fullName": "界周瑜", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "309", "useId": "309", "fullName": "界大乔", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-巾帼红颜", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "310", "useId": "310", "fullName": "界陆逊", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "311", "useId": "311", "fullName": "界曹操", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-贤明君主", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "312", "useId": "312", "fullName": "界司马懿", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "313", "useId": "313", "fullName": "界夏侯惇", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "314", "useId": "314", "fullName": "界张辽", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "315", "useId": "315", "fullName": "界许褚", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "316", "useId": "316", "fullName": "界郭嘉", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "317", "useId": "317", "fullName": "界李典", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "318", "useId": "318", "fullName": "界华佗", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "319", "useId": "319", "fullName": "界吕布", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "320", "useId": "320", "fullName": "界公孙瓒", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "321", "useId": "321", "fullName": "曹真", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "322", "useId": "322", "fullName": "韩浩史涣", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "323", "useId": "323", "fullName": "陈群", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "324", "useId": "324", "fullName": "吴懿", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "325", "useId": "325", "fullName": "周仓", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "326", "useId": "326", "fullName": "张松", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "327", "useId": "327", "fullName": "孙鲁班", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "328", "useId": "328", "fullName": "朱桓", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "329", "useId": "329", "fullName": "顾雍", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "330", "useId": "330", "fullName": "沮授", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "331", "useId": "331", "fullName": "蔡夫人", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 29, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "332", "useId": "332", "fullName": "曹叡", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "333", "useId": "333", "fullName": "曹休", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "334", "useId": "334", "fullName": "钟繇", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "335", "useId": "335", "fullName": "刘谌", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "336", "useId": "336", "fullName": "夏侯氏", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "337", "useId": "337", "fullName": "张嶷", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "338", "useId": "338", "fullName": "孙休", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "339", "useId": "339", "fullName": "朱治", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "340", "useId": "340", "fullName": "全琮", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "341", "useId": "341", "fullName": "公孙渊", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "342", "useId": "342", "fullName": "郭图逢纪", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 30, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "343", "useId": "343", "fullName": "张鲁", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "344", "useId": "344", "fullName": "王荣", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "345", "useId": "345", "fullName": "士燮", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "346", "useId": "346", "fullName": "马云騄", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "347", "useId": "347", "fullName": "蹋顿", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "348", "useId": "348", "fullName": "严白虎", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "349", "useId": "349", "fullName": "关索", "faction": "蜀", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "350", "useId": "350", "fullName": "王朗", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "351", "useId": "351", "fullName": "鲍三娘", "faction": "蜀", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "352", "useId": "352", "fullName": "邓芝", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "353", "useId": "353", "fullName": "曹婴", "faction": "魏", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "354", "useId": "354", "fullName": "左棻", "faction": "晋", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "355", "useId": "355", "fullName": "董昭", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "356", "useId": "356", "fullName": "吾彦", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "357", "useId": "357", "fullName": "SP张郃", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "360", "useId": "360", "fullName": "司马朗", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "361", "useId": "361", "fullName": "SP黄月英", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "362", "useId": "362", "fullName": "王基", "faction": "魏", "origFaction": null, "jiangdeng": "SP", "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "363", "useId": "363", "fullName": "步骘", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "364", "useId": "364", "fullName": "李通", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "365", "useId": "365", "fullName": "糜竺", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-列肆", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "366", "useId": "366", "fullName": "董白", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "367", "useId": "367", "fullName": "赵襄", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "368", "useId": "368", "fullName": "贺齐", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "369", "useId": "369", "fullName": "董允", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "370", "useId": "370", "fullName": "马忠", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "371", "useId": "371", "fullName": "阚泽", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "372", "useId": "372", "fullName": "王允", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "373", "useId": "373", "fullName": "诸葛果", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "374", "useId": "374", "fullName": "麹义", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "375", "useId": "375", "fullName": "戏志才", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "376", "useId": "376", "fullName": "孙乾", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "377", "useId": "377", "fullName": "卑弥呼", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "378", "useId": "378", "fullName": "刘琦", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "379", "useId": "379", "fullName": "鲁芝", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "380", "useId": "380", "fullName": "郭皇后", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "381", "useId": "381", "fullName": "李严", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "382", "useId": "382", "fullName": "孙登", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "383", "useId": "383", "fullName": "刘虞", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "384", "useId": "384", "fullName": "岑昏", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "385", "useId": "385", "fullName": "孙资刘放", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "386", "useId": "386", "fullName": "黄皓", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "387", "useId": "387", "fullName": "张让", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 31, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "388", "useId": "388", "fullName": "辛宪英", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "389", "useId": "389", "fullName": "吴苋", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "390", "useId": "390", "fullName": "徐氏", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "391", "useId": "391", "fullName": "曹节", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "392", "useId": "392", "fullName": "嵇康", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "393", "useId": "393", "fullName": "秦宓", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "394", "useId": "394", "fullName": "薛综", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "395", "useId": "395", "fullName": "蔡邕", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 33, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "400", "useId": "400", "fullName": "严颜", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "401", "useId": "401", "fullName": "王平", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "402", "useId": "402", "fullName": "陆绩", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "403", "useId": "403", "fullName": "孙亮", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "404", "useId": "404", "fullName": "蒯良蒯越", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "406", "useId": "406", "fullName": "许攸", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "407", "useId": "407", "fullName": "卢植", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 34, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "408", "useId": "408", "fullName": "郝昭", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "409", "useId": "409", "fullName": "陈到", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "410", "useId": "410", "fullName": "诸葛瞻", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "411", "useId": "411", "fullName": "周妃", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "413", "useId": "413", "fullName": "毌丘俭", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "414", "useId": "414", "fullName": "陆抗", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "415", "useId": "415", "fullName": "张绣", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 35, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "416", "useId": "416", "fullName": "司马徽", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "417", "useId": "417", "fullName": "徐荣", "faction": "群", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "418", "useId": "418", "fullName": "李傕", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "419", "useId": "419", "fullName": "张济", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "420", "useId": "420", "fullName": "苏飞", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "421", "useId": "421", "fullName": "黄权", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "422", "useId": "422", "fullName": "唐咨", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "423", "useId": "423", "fullName": "樊稠", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "424", "useId": "424", "fullName": "郭汜", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "425", "useId": "425", "fullName": "张琪瑛", "faction": "群", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "426", "useId": "426", "fullName": "曹纯", "faction": "魏", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "427", "useId": "427", "fullName": "许靖", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "428", "useId": "428", "fullName": "王粲", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "429", "useId": "429", "fullName": "SP庞统", "faction": "吴", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "430", "useId": "430", "fullName": "袁谭袁尚", "faction": "群", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "431", "useId": "431", "fullName": "沙摩柯", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "432", "useId": "432", "fullName": "吕虔", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "433", "useId": "433", "fullName": "孙邵", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "434", "useId": "434", "fullName": "吕旷吕翔", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "435", "useId": "435", "fullName": "辛毗", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "436", "useId": "436", "fullName": "花鬘", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "437", "useId": "437", "fullName": "丁原", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "438", "useId": "438", "fullName": "曹嵩", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "439", "useId": "439", "fullName": "卞夫人", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "440", "useId": "440", "fullName": "界诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-帷幄千里", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "441", "useId": "441", "fullName": "界黄月英", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-巾帼红颜", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "442", "useId": "442", "fullName": "界孙权", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-贤明君主", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "443", "useId": "443", "fullName": "界孙尚香", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-巾帼红颜", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "444", "useId": "444", "fullName": "界甄姬", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-巾帼红颜", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "445", "useId": "445", "fullName": "界貂蝉", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-巾帼红颜", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "446", "useId": "446", "fullName": "界华雄", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-勇冠三军", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "447", "useId": "447", "fullName": "界左慈", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "448", "useId": "448", "fullName": "界张角", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-风", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "449", "useId": "449", "fullName": "界于吉", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-风", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "450", "useId": "450", "fullName": "界袁绍", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "451", "useId": "451", "fullName": "界刘禅", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "452", "useId": "452", "fullName": "界孙策", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "453", "useId": "453", "fullName": "界夏侯渊", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-风", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "454", "useId": "454", "fullName": "界卧龙诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "455", "useId": "455", "fullName": "界庞统", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "456", "useId": "456", "fullName": "界魏延", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-风", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "457", "useId": "457", "fullName": "界小乔", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-风", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "458", "useId": "458", "fullName": "界孙坚", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "459", "useId": "459", "fullName": "审配", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "460", "useId": "460", "fullName": "荀谌", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "461", "useId": "461", "fullName": "高览", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "462", "useId": "462", "fullName": "界庞德", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "463", "useId": "463", "fullName": "界太史慈", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "464", "useId": "464", "fullName": "张陵", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "465", "useId": "465", "fullName": "吕凯", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "466", "useId": "466", "fullName": "张昌蒲", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "467", "useId": "467", "fullName": "蒋干", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "468", "useId": "468", "fullName": "周鲂", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "469", "useId": "469", "fullName": "曹爽", "faction": "魏", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "470", "useId": "470", "fullName": "界董卓", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "471", "useId": "471", "fullName": "界邓艾", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "472", "useId": "472", "fullName": "潘濬", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "473", "useId": "473", "fullName": "严畯", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "474", "useId": "474", "fullName": "SP张辽", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "475", "useId": "475", "fullName": "卧龙凤雏", "faction": "蜀", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "476", "useId": "476", "fullName": "曹性", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "477", "useId": "477", "fullName": "黄祖", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "478", "useId": "478", "fullName": "潘淑", "faction": "吴", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "479", "useId": "479", "fullName": "界祝融", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "480", "useId": "480", "fullName": "界姜维", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "481", "useId": "481", "fullName": "黄承彦", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "482", "useId": "482", "fullName": "高干", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "483", "useId": "483", "fullName": "杜袭", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "484", "useId": "484", "fullName": "界贾诩", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "485", "useId": "485", "fullName": "界鲁肃", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "487", "useId": "487", "fullName": "刘辩", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "488", "useId": "488", "fullName": "杨仪", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "489", "useId": "489", "fullName": "朱灵", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "490", "useId": "490", "fullName": "王双", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "491", "useId": "491", "fullName": "冯方女", "faction": "群", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "492", "useId": "492", "fullName": "界孟获", "faction": "蜀", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "2000", "useId": "15", "fullName": "国战曹操", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2001", "useId": "16", "fullName": "国战司马懿", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2002", "useId": "17", "fullName": "国战夏侯惇", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2003", "useId": "18", "fullName": "国战张辽", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2004", "useId": "19", "fullName": "国战许褚", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2005", "useId": "20", "fullName": "国战郭嘉", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2006", "useId": "21", "fullName": "国战甄姬", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2007", "useId": "28", "fullName": "国战夏侯渊", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2008", "useId": "50", "fullName": "国战张郃", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2009", "useId": "42", "fullName": "国战徐晃", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2010", "useId": "2010", "fullName": "国战曹仁", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2011", "useId": "34", "fullName": "国战典韦", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2012", "useId": "35", "fullName": "国战荀彧", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2013", "useId": "43", "fullName": "国战曹丕", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2014", "useId": "2014", "fullName": "国战乐进", "faction": "魏", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2015", "useId": "1", "fullName": "国战刘备", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2016", "useId": "2", "fullName": "国战关羽", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2017", "useId": "3", "fullName": "国战张飞", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2018", "useId": "4", "fullName": "国战诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2019", "useId": "5", "fullName": "国战赵云", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2020", "useId": "6", "fullName": "国战马超", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2021", "useId": "2021", "fullName": "国战黄月英", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2022", "useId": "61", "fullName": "国战黄忠", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2023", "useId": "27", "fullName": "国战魏延", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2024", "useId": "36", "fullName": "国战庞统", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2025", "useId": "37", "fullName": "国战卧龙诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2026", "useId": "53", "fullName": "国战刘禅", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2027", "useId": "47", "fullName": "国战孟获", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2028", "useId": "46", "fullName": "国战祝融", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2029", "useId": "2029", "fullName": "国战甘夫人", "faction": "蜀", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2030", "useId": "8", "fullName": "国战孙权", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2031", "useId": "9", "fullName": "国战甘宁", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2032", "useId": "10", "fullName": "国战吕蒙", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2033", "useId": "11", "fullName": "国战黄盖", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2034", "useId": "12", "fullName": "国战周瑜", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2035", "useId": "13", "fullName": "国战大乔", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2036", "useId": "2036", "fullName": "国战陆逊", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2037", "useId": "25", "fullName": "国战孙尚香", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2038", "useId": "44", "fullName": "国战孙坚", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2039", "useId": "30", "fullName": "国战小乔", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2040", "useId": "38", "fullName": "国战太史慈", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2041", "useId": "31", "fullName": "国战周泰", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2042", "useId": "49", "fullName": "国战鲁肃", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2043", "useId": "55", "fullName": "国战张昭张纮", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2044", "useId": "2044", "fullName": "国战丁奉", "faction": "吴", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2045", "useId": "22", "fullName": "国战华佗", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2046", "useId": "23", "fullName": "国战吕布", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2047", "useId": "24", "fullName": "国战貂蝉", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2048", "useId": "41", "fullName": "国战袁绍", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2049", "useId": "40", "fullName": "国战颜良文丑", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2050", "useId": "48", "fullName": "国战贾诩", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2051", "useId": "39", "fullName": "国战庞德", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2052", "useId": "32", "fullName": "国战张角", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2053", "useId": "57", "fullName": "国战蔡文姬", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2054", "useId": "2054", "fullName": "国战马腾", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2055", "useId": "2055", "fullName": "国战孔融", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2056", "useId": "2056", "fullName": "国战纪灵", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2057", "useId": "2057", "fullName": "国战田丰", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2058", "useId": "2058", "fullName": "国战潘凤", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2059", "useId": "2059", "fullName": "国战邹氏", "faction": "群", "origFaction": null, "jiangdeng": null, "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2060", "useId": "131", "fullName": "国战何太后", "faction": "群", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2061", "useId": "2061", "fullName": "国战蒋琬费祎", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2062", "useId": "317", "fullName": "国战李典", "faction": "魏", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2063", "useId": "2063", "fullName": "国战徐盛", "faction": "吴", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2064", "useId": "167", "fullName": "国战马岱", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2065", "useId": "2065", "fullName": "国战邓艾", "faction": "魏", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2066", "useId": "54", "fullName": "国战孙策", "faction": "吴", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2067", "useId": "2067", "fullName": "国战董卓", "faction": "群", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2068", "useId": "2068", "fullName": "国战于吉", "faction": "群", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2069", "useId": "2069", "fullName": "国战臧霸", "faction": "魏", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2070", "useId": "2070", "fullName": "国战糜夫人", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2071", "useId": "2071", "fullName": "国战陈武董袭", "faction": "吴", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2072", "useId": "2072", "fullName": "国战张任", "faction": "群", "origFaction": null, "jiangdeng": "国战-势", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2073", "useId": "2073", "fullName": "国战曹洪", "faction": "魏", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2074", "useId": "2074", "fullName": "国战蒋钦", "faction": "吴", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2075", "useId": "2075", "fullName": "国战姜维", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-阵", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2076", "useId": "2076", "fullName": "国战李傕郭汜", "faction": "群", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2077", "useId": "2077", "fullName": "国战荀攸", "faction": "魏", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2078", "useId": "2078", "fullName": "国战沙摩柯", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "2079", "useId": "2079", "fullName": "国战吕范", "faction": "吴", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2080", "useId": "2080", "fullName": "国战法正", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2081", "useId": "2081", "fullName": "国战张绣", "faction": "群", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "2082", "useId": "2082", "fullName": "国战凌统", "faction": "吴", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2083", "useId": "7000", "fullName": "国战张虎乐綝", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2084", "useId": "7001", "fullName": "国战夏侯徽", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2085", "useId": "7002", "fullName": "国战司马师", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2086", "useId": "7003", "fullName": "国战司马懿", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2087", "useId": "7004", "fullName": "国战司马昭", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2088", "useId": "7005", "fullName": "国战王元姬", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "2089", "useId": "7006", "fullName": "国战杜预", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "2090", "useId": "7007", "fullName": "国战张春华", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2091", "useId": "7008", "fullName": "国战羊徽瑜", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2092", "useId": "2092", "fullName": "国战马谡", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2093", "useId": "2093", "fullName": "国战陆抗", "faction": "吴", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "2094", "useId": "2094", "fullName": "国战左慈", "faction": "群", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "2095", "useId": "7009", "fullName": "国战石苞", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2096", "useId": "7011", "fullName": "国战司马伷", "faction": "晋", "origFaction": null, "jiangdeng": null, "exType": 49, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2097", "useId": "2097", "fullName": "国战卞夫人", "faction": "魏", "origFaction": null, "jiangdeng": "国战-变", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2098", "useId": "2098", "fullName": "国战吴国太", "faction": "吴", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2099", "useId": "2099", "fullName": "国战王平", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2100", "useId": "2100", "fullName": "国战于禁", "faction": "魏", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2101", "useId": "2101", "fullName": "国战崔琰毛玠", "faction": "魏", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "2102", "useId": "100", "fullName": "国战袁术", "faction": "群", "origFaction": null, "jiangdeng": "国战-权", "exType": 21, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2103", "useId": "2103", "fullName": "国战钟会", "faction": "魏", "origFaction": null, "jiangdeng": "国战-诈", "exType": 0, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2104", "useId": "2104", "fullName": "国战吴懿", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-辞", "exType": 0, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2105", "useId": "169", "fullName": "国战程普", "faction": "吴", "origFaction": null, "jiangdeng": "国战-礼", "exType": 0, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2106", "useId": "406", "fullName": "国战许攸", "faction": "群", "origFaction": null, "jiangdeng": "国战-谦", "exType": 0, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "2108", "useId": "166", "fullName": "国战廖化", "faction": "蜀", "origFaction": null, "jiangdeng": "国战-诈", "exType": 0, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "7001", "useId": "7001", "fullName": "夏侯徽", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-备", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7002", "useId": "7002", "fullName": "司马师", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-备", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7003", "useId": "7003", "fullName": "司马懿", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-理", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7004", "useId": "7004", "fullName": "司马昭", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-果", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7005", "useId": "7005", "fullName": "王元姬", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-果", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "7006", "useId": "7006", "fullName": "杜预", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-果", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "7007", "useId": "7007", "fullName": "张春华", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-理", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7008", "useId": "7008", "fullName": "羊徽瑜", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-备", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7009", "useId": "7009", "fullName": "石苞", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-备", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7010", "useId": "7010", "fullName": "李肃", "faction": "群", "origFaction": null, "jiangdeng": "文德武备-理", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7011", "useId": "7011", "fullName": "司马伷", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-理", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7012", "useId": "7012", "fullName": "彻里吉", "faction": "群", "origFaction": null, "jiangdeng": "文德武备-理", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7013", "useId": "7013", "fullName": "卫瓘", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-果", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7014", "useId": "7014", "fullName": "钟琰", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-戒", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7015", "useId": "7015", "fullName": "华歆", "faction": "魏", "origFaction": null, "jiangdeng": "文德武备-理", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "7016", "useId": "7016", "fullName": "杨艳", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-约", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "7017", "useId": "7017", "fullName": "杨芷", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-约", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "7018", "useId": "7018", "fullName": "辛敞", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-戒", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "358", "useId": "358", "fullName": "宣公主", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-果", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "493", "useId": "493", "fullName": "田豫", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "494", "useId": "494", "fullName": "范疆张达", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "495", "useId": "495", "fullName": "陈登", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "496", "useId": "496", "fullName": "界徐晃", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-林", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "497", "useId": "497", "fullName": "羊祜", "faction": "晋", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "498", "useId": "498", "fullName": "清河公主", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "7019", "useId": "7019", "fullName": "贾充", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-戒", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "486", "useId": "486", "fullName": "界张郃", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "499", "useId": "499", "fullName": "杨婉", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "500", "useId": "500", "fullName": "滕芳兰", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "501", "useId": "501", "fullName": "卫兹", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-列肆", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "502", "useId": "502", "fullName": "芮姬", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "503", "useId": "503", "fullName": "伊籍", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "504", "useId": "504", "fullName": "唐姬", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "7020", "useId": "7020", "fullName": "王祥", "faction": "晋", "origFaction": null, "jiangdeng": "文德武备-戒", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "505", "useId": "505", "fullName": "界蔡文姬", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "506", "useId": "506", "fullName": "SP孟获", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "507", "useId": "507", "fullName": "刘宏", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "508", "useId": "508", "fullName": "郭槐", "faction": "晋", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "509", "useId": "509", "fullName": "曹宪曹华", "faction": "群", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "510", "useId": "510", "fullName": "蒲元", "faction": "蜀", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "511", "useId": "511", "fullName": "赵俨", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "512", "useId": "512", "fullName": "邓忠", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "513", "useId": "513", "fullName": "霍峻", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "514", "useId": "514", "fullName": "梁兴", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "515", "useId": "515", "fullName": "界荀彧", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "7021", "useId": "7021", "fullName": "神秘武将", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "516", "useId": "516", "fullName": "张芝", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "226", "useId": "226", "fullName": "神孙权", "faction": "神", "origFaction": "吴", "jiangdeng": null, "exType": 14, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "517", "useId": "517", "fullName": "文鸯", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "518", "useId": "518", "fullName": "周处", "faction": "晋", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "519", "useId": "519", "fullName": "夏侯玄", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "520", "useId": "520", "fullName": "马日磾", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "521", "useId": "521", "fullName": "阎柔", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "522", "useId": "522", "fullName": "族荀淑", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "523", "useId": "523", "fullName": "族荀谌", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "524", "useId": "524", "fullName": "族荀采", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "525", "useId": "525", "fullName": "族荀粲", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "526", "useId": "526", "fullName": "界典韦", "faction": "魏", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "527", "useId": "527", "fullName": "朱儁", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "528", "useId": "528", "fullName": "族吴苋", "faction": "蜀", "origFaction": null, "jiangdeng": "门阀士族-吴", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "529", "useId": "529", "fullName": "族吴班", "faction": "蜀", "origFaction": null, "jiangdeng": "门阀士族-吴", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "530", "useId": "530", "fullName": "神秘武将", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "531", "useId": "531", "fullName": "阿会喃", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "532", "useId": "532", "fullName": "马承", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "533", "useId": "533", "fullName": "傅肜", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "534", "useId": "534", "fullName": "胡班", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "535", "useId": "535", "fullName": "屈晃", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "536", "useId": "536", "fullName": "刘巴", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-列肆", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "537", "useId": "537", "fullName": "孙弘", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "538", "useId": "538", "fullName": "马休马铁", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "539", "useId": "539", "fullName": "卢氏", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "540", "useId": "540", "fullName": "谯周", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "541", "useId": "541", "fullName": "张翼", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "542", "useId": "542", "fullName": "阎圃", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "227", "useId": "227", "fullName": "神张角", "faction": "神", "origFaction": "群", "jiangdeng": null, "exType": 14, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "543", "useId": "543", "fullName": "周群", "faction": "蜀", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "544", "useId": "544", "fullName": "张华", "faction": "晋", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "545", "useId": "545", "fullName": "罗宪", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "546", "useId": "546", "fullName": "族韩韶", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-韩", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "547", "useId": "547", "fullName": "族韩融", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-韩", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "548", "useId": "548", "fullName": "族钟琰", "faction": "晋", "origFaction": null, "jiangdeng": "门阀士族-钟", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "549", "useId": "549", "fullName": "族吴匡", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-吴", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "550", "useId": "550", "fullName": "界颜良文丑", "faction": "群", "origFaction": null, "jiangdeng": "界限突破-火", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "551", "useId": "551", "fullName": "成济成倅", "faction": "魏", "origFaction": null, "jiangdeng": "文德武备-备", "exType": 40, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "552", "useId": "552", "fullName": "曹羲", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "553", "useId": "553", "fullName": "王瓘", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "554", "useId": "554", "fullName": "杜夫人", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "555", "useId": "555", "fullName": "族王允", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "556", "useId": "556", "fullName": "族王凌", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "557", "useId": "557", "fullName": "郝普", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "558", "useId": "558", "fullName": "孟达", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "559", "useId": "559", "fullName": "张世平", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-列肆", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "560", "useId": "560", "fullName": "段颎", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "561", "useId": "561", "fullName": "马玩", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "562", "useId": "562", "fullName": "陆郁生", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "563", "useId": "563", "fullName": "界张昭张纮", "faction": "吴", "origFaction": null, "jiangdeng": "界限突破-山", "exType": 26, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "564", "useId": "564", "fullName": "族王昶", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "565", "useId": "565", "fullName": "神秘武将", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "566", "useId": "566", "fullName": "族钟毓", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-钟", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "567", "useId": "567", "fullName": "族钟会", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-钟", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "568", "useId": "568", "fullName": "费祎", "faction": "蜀", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "569", "useId": "569", "fullName": "丁尚涴", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "570", "useId": "570", "fullName": "文钦", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "571", "useId": "571", "fullName": "步度根", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "572", "useId": "572", "fullName": "彭羕", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "573", "useId": "573", "fullName": "族荀攸", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "574", "useId": "574", "fullName": "族王浑", "faction": "晋", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "575", "useId": "575", "fullName": "族王沦", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "576", "useId": "576", "fullName": "蒋琬", "faction": "蜀", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "577", "useId": "577", "fullName": "李婉", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "578", "useId": "578", "fullName": "吕伯奢", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-列肆", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "228", "useId": "228", "fullName": "神秘武将", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "579", "useId": "579", "fullName": "雅丹", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "580", "useId": "580", "fullName": "牵招", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "581", "useId": "581", "fullName": "张燕", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "582", "useId": "582", "fullName": "族吴乔", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-吴", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "583", "useId": "3041", "fullName": "何进", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "584", "useId": "3042", "fullName": "牛金", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "585", "useId": "3043", "fullName": "韩遂", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "586", "useId": "586", "fullName": "谋姜维", "faction": "蜀", "origFaction": null, "jiangdeng": "谋-谋定天下", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "587", "useId": "587", "fullName": "界徐盛", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "588", "useId": "588", "fullName": "界凌统", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "589", "useId": "589", "fullName": "神秘武将", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "590", "useId": "590", "fullName": "陆凯", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "591", "useId": "591", "fullName": "向宠", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "592", "useId": "592", "fullName": "田畴", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "593", "useId": "593", "fullName": "谋关羽", "faction": "蜀", "origFaction": null, "jiangdeng": "谋-武动乾坤", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "594", "useId": "594", "fullName": "胡金定", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "595", "useId": "595", "fullName": "族王广", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "596", "useId": "596", "fullName": "曹宇", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "597", "useId": "597", "fullName": "界陈宫", "faction": "群", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "598", "useId": "598", "fullName": "凌操", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "599", "useId": "599", "fullName": "界曹彰", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "600", "useId": "600", "fullName": "界简雍", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-3", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "601", "useId": "601", "fullName": "谋邓艾", "faction": "魏", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "602", "useId": "602", "fullName": "谋太史慈", "faction": "吴", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "603", "useId": "603", "fullName": "界虞翻", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-3", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "604", "useId": "604", "fullName": "界高顺", "faction": "群", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "605", "useId": "605", "fullName": "谋董卓", "faction": "群", "origFaction": null, "jiangdeng": "谋-武动乾坤", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "607", "useId": "607", "fullName": "李异", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "608", "useId": "608", "fullName": "族王明山", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "609", "useId": "609", "fullName": "谋孙坚", "faction": "吴", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "610", "useId": "610", "fullName": "界法正", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "611", "useId": "611", "fullName": "刘磐", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "612", "useId": "612", "fullName": "刘辟", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "619", "useId": "619", "fullName": "曹腾", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "620", "useId": "620", "fullName": "界程普", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "621", "useId": "621", "fullName": "界王异", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "622", "useId": "622", "fullName": "谋黄月英", "faction": "蜀", "origFaction": null, "jiangdeng": "谋-花好月圆", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "623", "useId": "623", "fullName": "谋袁绍", "faction": "群", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "624", "useId": "624", "fullName": "郭图", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "625", "useId": "625", "fullName": "界张春华", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "626", "useId": "626", "fullName": "界刘表", "faction": "群", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "627", "useId": "627", "fullName": "界蔡夫人", "faction": "群", "origFaction": null, "jiangdeng": "界一将-4", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "628", "useId": "628", "fullName": "界曹冲", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-3", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "629", "useId": "629", "fullName": "界曹植", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "630", "useId": "630", "fullName": "族钟繇", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-钟", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "631", "useId": "631", "fullName": "蔡瑁", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "632", "useId": "632", "fullName": "孙茹", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "633", "useId": "633", "fullName": "SP孙策", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "634", "useId": "634", "fullName": "刘焉", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "635", "useId": "635", "fullName": "谋庞统", "faction": "蜀", "origFaction": null, "jiangdeng": "谋-谋定天下", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "636", "useId": "636", "fullName": "王匡", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "637", "useId": "637", "fullName": "成公英", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "638", "useId": "638", "fullName": "轲比能", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "639", "useId": "639", "fullName": "秦朗", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "640", "useId": "640", "fullName": "界吴国太", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "641", "useId": "641", "fullName": "界廖化", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "642", "useId": "642", "fullName": "界李儒", "faction": "群", "origFaction": null, "jiangdeng": "界一将-3", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "643", "useId": "643", "fullName": "谋孔融", "faction": "群", "origFaction": null, "jiangdeng": "谋-施仁布德", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "644", "useId": "644", "fullName": "谋华雄", "faction": "群", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "646", "useId": "646", "fullName": "谋袁术", "faction": "群", "origFaction": null, "jiangdeng": "谋-达权通变", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "647", "useId": "647", "fullName": "族王沈", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-王", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "648", "useId": "648", "fullName": "谋公孙瓒", "faction": "群", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "649", "useId": "649", "fullName": "陶谦", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "650", "useId": "650", "fullName": "武安国", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "651", "useId": "651", "fullName": "韩馥", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "652", "useId": "652", "fullName": "袁姬", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "653", "useId": "653", "fullName": "薛灵芸", "faction": "魏", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "654", "useId": "654", "fullName": "孔淑", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "655", "useId": "655", "fullName": "牛辅", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "656", "useId": "656", "fullName": "董翓", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "657", "useId": "657", "fullName": "阮慧", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "稀有"}, {"id": "658", "useId": "658", "fullName": "界郭淮", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-3", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "659", "useId": "659", "fullName": "谋田丰", "faction": "群", "origFaction": null, "jiangdeng": "谋-计出万全", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "660", "useId": "660", "fullName": "杨奉", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "661", "useId": "661", "fullName": "SP曹操", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "662", "useId": "662", "fullName": "郭照", "faction": "魏", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "664", "useId": "664", "fullName": "SP刘备", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "665", "useId": "665", "fullName": "袁涣", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "666", "useId": "666", "fullName": "杨阜", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "667", "useId": "667", "fullName": "蔡贞姬", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "668", "useId": "668", "fullName": "吴景", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "669", "useId": "669", "fullName": "马元义", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "671", "useId": "671", "fullName": "界伏皇后", "faction": "群", "origFaction": null, "jiangdeng": "界一将-3", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "675", "useId": "675", "fullName": "刘晔", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "676", "useId": "676", "fullName": "界韩当", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "677", "useId": "677", "fullName": "谋郭嘉", "faction": "魏", "origFaction": null, "jiangdeng": "谋-谋定天下", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "678", "useId": "678", "fullName": "樊氏", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "679", "useId": "679", "fullName": "逢纪", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "681", "useId": "681", "fullName": "谋文丑", "faction": "群", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "682", "useId": "682", "fullName": "裴元绍", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "683", "useId": "683", "fullName": "刘璋", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "684", "useId": "684", "fullName": "族荀爽", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "685", "useId": "685", "fullName": "韩氏五虎", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "687", "useId": "687", "fullName": "谋张绣", "faction": "群", "origFaction": null, "jiangdeng": "谋-奋勇扬威", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "688", "useId": "688", "fullName": "闪赵云", "faction": "蜀", "origFaction": null, "jiangdeng": "闪-江山如故", "exType": 53, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "689", "useId": "689", "fullName": "南华老仙", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "690", "useId": "690", "fullName": "界关兴张苞", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "691", "useId": "691", "fullName": "族杨赐", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-杨", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "692", "useId": "692", "fullName": "谋卢植", "faction": "群", "origFaction": null, "jiangdeng": "谋-施仁布德", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "693", "useId": "693", "fullName": "李丰", "faction": "蜀", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "694", "useId": "694", "fullName": "族杨修", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-杨", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "695", "useId": "695", "fullName": "桥玄", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "696", "useId": "696", "fullName": "界马岱", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-2", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "697", "useId": "697", "fullName": "谋张让", "faction": "群", "origFaction": null, "jiangdeng": "谋-达权通变", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "698", "useId": "698", "fullName": "闪刘宏", "faction": "群", "origFaction": null, "jiangdeng": "闪-江山如故", "exType": 53, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "699", "useId": "699", "fullName": "张曼成", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-少微", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "700", "useId": "700", "fullName": "族杨彪", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-杨", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "701", "useId": "701", "fullName": "管亥", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "702", "useId": "702", "fullName": "赵忠", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-列肆", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "703", "useId": "703", "fullName": "族杨众", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-杨", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "704", "useId": "704", "fullName": "族陆绩", "faction": "吴", "origFaction": null, "jiangdeng": "门阀士族-陆", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "705", "useId": "705", "fullName": "谋小乔", "faction": "吴", "origFaction": null, "jiangdeng": "谋-花好月圆", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "706", "useId": "706", "fullName": "族陆景", "faction": "吴", "origFaction": null, "jiangdeng": "门阀士族-陆", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "707", "useId": "707", "fullName": "孙鸢", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "708", "useId": "708", "fullName": "界孙鲁班", "faction": "吴", "origFaction": null, "jiangdeng": "界一将-4", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "709", "useId": "709", "fullName": "祢衡", "faction": "群", "origFaction": null, "jiangdeng": "SP", "exType": 9, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "710", "useId": "710", "fullName": "魔司马懿", "faction": "魏", "origFaction": null, "jiangdeng": "魔", "exType": 54, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "711", "useId": "711", "fullName": "魔孙权", "faction": "吴", "origFaction": null, "jiangdeng": "魔", "exType": 54, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "712", "useId": "712", "fullName": "族荀彧", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "713", "useId": "713", "fullName": "魔曹操", "faction": "魏", "origFaction": null, "jiangdeng": "魔", "exType": 54, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "714", "useId": "714", "fullName": "魔吕布", "faction": "群", "origFaction": null, "jiangdeng": "魔", "exType": 54, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "715", "useId": "715", "fullName": "魔貂蝉", "faction": "群", "origFaction": null, "jiangdeng": "魔", "exType": 54, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "716", "useId": "716", "fullName": "吕玲绮", "faction": "群", "origFaction": null, "jiangdeng": "祈福", "exType": 46, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "717", "useId": "717", "fullName": "谋诸葛亮", "faction": "蜀", "origFaction": null, "jiangdeng": "谋-谋定天下", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "718", "useId": "718", "fullName": "谋鲁肃", "faction": "吴", "origFaction": null, "jiangdeng": "谋-谋定天下", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "719", "useId": "719", "fullName": "谋许攸", "faction": "群", "origFaction": null, "jiangdeng": "谋-达权通变", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "720", "useId": "720", "fullName": "闪朱儁", "faction": "群", "origFaction": null, "jiangdeng": "闪-江山如故", "exType": 53, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "721", "useId": "721", "fullName": "乔国老", "faction": "吴", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "722", "useId": "722", "fullName": "郑玄", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "723", "useId": "723", "fullName": "谋戏志才", "faction": "魏", "origFaction": null, "jiangdeng": "谋-计出万全", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "限定"}, {"id": "725", "useId": "725", "fullName": "闪孙坚", "faction": "群", "origFaction": null, "jiangdeng": "闪-江山如故", "exType": 53, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "726", "useId": "726", "fullName": "界郭皇后", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-7", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "727", "useId": "727", "fullName": "阮瑀", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "728", "useId": "728", "fullName": "鲍信", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "729", "useId": "729", "fullName": "环淑君", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "731", "useId": "731", "fullName": "闪张郃", "faction": "群", "origFaction": null, "jiangdeng": "闪-江山如故", "exType": 53, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "732", "useId": "732", "fullName": "闪张辽", "faction": "群", "origFaction": null, "jiangdeng": "闪-江山如故", "exType": 53, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "733", "useId": "733", "fullName": "族韩馥", "faction": "群", "origFaction": null, "jiangdeng": "门阀士族-韩", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "734", "useId": "734", "fullName": "谋程昱", "faction": "魏", "origFaction": null, "jiangdeng": "谋-计出万全", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "735", "useId": "735", "fullName": "谋董昭", "faction": "魏", "origFaction": null, "jiangdeng": "谋-达权通变", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "736", "useId": "736", "fullName": "族陈泰", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-陈", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "737", "useId": "737", "fullName": "族陈群", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-陈", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "738", "useId": "738", "fullName": "族荀莳", "faction": "魏", "origFaction": null, "jiangdeng": "门阀士族-荀", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "739", "useId": "739", "fullName": "崔琰", "faction": "魏", "origFaction": null, "jiangdeng": "璀璨星河-四弼", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "743", "useId": "743", "fullName": "皇甫嵩", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-虎贲", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "744", "useId": "744", "fullName": "唐棠", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-女史", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "746", "useId": "746", "fullName": "界曹节", "faction": "群", "origFaction": null, "jiangdeng": "界一将-7", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "747", "useId": "747", "fullName": "界辛宪英", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-7", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "749", "useId": "749", "fullName": "界沮授", "faction": "群", "origFaction": null, "jiangdeng": "界一将-4", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "750", "useId": "750", "fullName": "魔张飞", "faction": "蜀", "origFaction": null, "jiangdeng": "魔", "exType": 54, "genItemType": 0, "updateTime": "old", "quality": "传说"}, {"id": "751", "useId": "751", "fullName": "族陆郁生", "faction": "吴", "origFaction": null, "jiangdeng": "门阀士族-陆", "exType": 50, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "752", "useId": "752", "fullName": "界夏侯氏", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-5", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "753", "useId": "753", "fullName": "界张松", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-4", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "755", "useId": "755", "fullName": "董予安", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天极", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "756", "useId": "756", "fullName": "界于禁", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-1", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "史诗"}, {"id": "763", "useId": "763", "fullName": "段煨", "faction": "群", "origFaction": null, "jiangdeng": "璀璨星河-天柱", "exType": 44, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "765", "useId": "765", "fullName": "谋祝融", "faction": "蜀", "origFaction": null, "jiangdeng": "谋-花好月圆", "exType": 51, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "766", "useId": "766", "fullName": "界关平", "faction": "蜀", "origFaction": null, "jiangdeng": "界一将-5", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}, {"id": "767", "useId": "767", "fullName": "界曹休", "faction": "魏", "origFaction": null, "jiangdeng": "界一将-7", "exType": 52, "genItemType": 0, "updateTime": "old", "quality": "普通"}];
+
+/**
+ * 将灯兜底映射。
+ * 如果你的 heroesRaw 里面已经都有 jiangdeng，可以保留也可以删减。
+ */
+const DICT_JD_FALLBACK = {
+    "1-0": "标准",
+    "4-0": "神话再临-风",
+    "5-0": "神话再临-火",
+    "6-0": "神话再临-林",
+    "7-0": "神话再临-山",
+    "34-0": "神话再临-阴",
+    "35-0": "神话再临-雷",
+    "99-0": "神话再临-神将",
+    "10-0": "一将成名-1",
+    "11-0": "一将成名-1",
+    "20-0": "一将成名-2",
+    "25-0": "一将成名-3",
+    "29-0": "一将成名-4",
+    "30-0": "一将成名-5",
+    "31-0": "一将成名-6",
+    "33-0": "一将成名-7",
+    "21-0": "国战-标准"
+};
+
+const { pinyin } = pinyinPro;
+
+let curQuality = 'all';
+let curBig = 'all';
+let curSub = 'all';
+
+/**
+ * 用 id 作为已选标识。
+ */
+const selectedIds = new Set();
+
+/**
+ * 数据预处理。
+ */
+const heroes = heroesRaw.map(raw => {
+    const h = { ...raw };
+
+    let jd = h.jiangdeng;
+
+    if (String(h.id) === "350") {
+        jd = "限定";
+    } else if (h.faction === "神" && h.origFaction) {
+        jd = "神话再临-神将";
+    } else if (!jd) {
+        jd = DICT_JD_FALLBACK[`${h.exType}-${h.genItemType}`] || "无";
+    }
+
+    if (String(h.id) === "362") jd = "神话再临-阴";
+    if (String(h.id) === "100") jd = "神话再临-雷";
+
+    h.finalJd = jd;
+    h.bigJd = jd.includes('-') ? jd.split('-')[0] : jd;
+    h.quality = h.quality || "普通";
+
+    h.py = pinyin(h.fullName || '', {
+        toneType: 'none',
+        nonZh: 'consonant'
+    }).replace(/\s/g, '').toLowerCase();
+
+    h.pyFirst = pinyin(h.fullName || '', {
+        pattern: 'first',
+        toneType: 'none'
+    }).replace(/\s/g, '').toLowerCase();
+
+    return h;
+});
+
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getHeroImageUrl(h) {
+    const useId = h.useId || h.id;
+    return `https://web.sanguosha.com/220/h5_2/res/runtime/pc/general/skinShop/${useId}00.png`;
+}
+
+function getHeroBackupImageUrl(h) {
+    const useId = h.useId || h.id;
+    return `https://web.sanguosha.com/220/h5_2/res/runtime/pc/activity/shequshow/xingxiang/${useId}00.png`;
+}
+
+function buildFilterUI() {
+    const bigSet = new Set();
+
+    heroes.forEach(h => {
+        if (h.bigJd && h.bigJd !== "无") {
+            bigSet.add(h.bigJd);
+        }
+    });
+
+    const box = document.getElementById('bigLampBox');
+
+    [...bigSet].sort((a, b) => a.localeCompare(b, 'zh-CN')).forEach(name => {
+        const btn = document.createElement('div');
+        btn.className = 'filter-btn';
+        btn.textContent = name;
+        btn.onclick = () => filterBig(name, btn);
+        box.appendChild(btn);
+    });
+}
+
+function filterQuality(quality, el) {
+    document.querySelectorAll('#qualityBox .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    el.classList.add('active');
+    curQuality = quality;
+    render();
+}
+
+function filterBig(name, el) {
+    document.querySelectorAll('#bigLampBox .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    el.classList.add('active');
+
+    curBig = name;
+    curSub = 'all';
+
+    const subBox = document.getElementById('subLampBox');
+    subBox.innerHTML = '';
+
+    if (name === 'all') {
+        subBox.style.display = 'none';
+        render();
+        return;
+    }
+
+    const subs = [...new Set(
+        heroes
+            .filter(h => h.bigJd === name)
+            .map(h => h.finalJd)
+    )].sort((a, b) => a.localeCompare(b, 'zh-CN'));
+
+    if (subs.length <= 1) {
+        subBox.style.display = 'none';
+        render();
+        return;
+    }
+
+    subBox.style.display = 'flex';
+
+    const allBtn = document.createElement('div');
+    allBtn.className = 'filter-btn active';
+    allBtn.textContent = '全部';
+    allBtn.onclick = () => filterSub('all', allBtn);
+    subBox.appendChild(allBtn);
+
+    subs.forEach(sub => {
+        const btn = document.createElement('div');
+        btn.className = 'filter-btn';
+
+        const displayName = sub.includes('-') ? sub.split('-').slice(1).join('-') : sub;
+        btn.textContent = displayName;
+
+        btn.onclick = () => filterSub(sub, btn);
+        subBox.appendChild(btn);
+    });
+
+    render();
+}
+
+function filterSub(name, el) {
+    document.querySelectorAll('#subLampBox .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    el.classList.add('active');
+    curSub = name;
+    render();
+}
+
+function isHeroMatched(h) {
+    const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+    const recent = document.getElementById('recentCheck').checked;
+
+    if (kw) {
+        const matchName = String(h.fullName || '').toLowerCase().includes(kw);
+        const matchPy = h.py.includes(kw);
+        const matchFirst = h.pyFirst.includes(kw);
+
+        if (!matchName && !matchPy && !matchFirst) return false;
+    }
+
+    if (curQuality !== 'all' && h.quality !== curQuality) return false;
+    if (curBig !== 'all' && h.bigJd !== curBig) return false;
+    if (curSub !== 'all' && h.finalJd !== curSub) return false;
+    if (recent && h.updateTime !== 'recent') return false;
+
+    return true;
+}
+
+function render() {
+    const grid = document.getElementById('heroGrid');
+    const emptyBox = document.getElementById('emptyBox');
+
+    grid.innerHTML = '';
+
+    const matched = heroes.filter(isHeroMatched);
+
+    emptyBox.style.display = matched.length ? 'none' : 'block';
+
+    const frag = document.createDocumentFragment();
+
+    matched.forEach(h => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        if (selectedIds.has(String(h.id))) {
+            card.classList.add('selected');
+        }
+
+        card.onclick = () => toggleSelect(h.id);
+
+        const imgUrl = getHeroImageUrl(h);
+        const backupUrl = getHeroBackupImageUrl(h);
+
+        card.innerHTML = `
+            <div class="avatar-wrap">
+                <img class="avatar" loading="lazy"
+                     src="${escapeHtml(imgUrl)}"
+                     onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='${escapeHtml(backupUrl)}';}else{this.onerror=null;this.style.opacity='0';this.parentNode.style.background='#222';this.parentNode.innerHTML+='<div style=&quot;color:#777;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:bold;&quot;>暂无图</div>';}">
+                ${h.updateTime === 'recent' ? '<div class="recent-tag">NEW</div>' : ''}
+            </div>
+            <div class="name">${escapeHtml(h.fullName)}</div>
+            <div class="meta">${escapeHtml(h.quality)} · ${escapeHtml(h.finalJd)}</div>
+        `;
+
+        frag.appendChild(card);
+    });
+
+    grid.appendChild(frag);
+    updateSelectedInfo();
+}
+
+function toggleSelect(id) {
+    const key = String(id);
+
+    if (selectedIds.has(key)) {
+        selectedIds.delete(key);
+    } else {
+        selectedIds.add(key);
+    }
+
+    render();
+}
+
+function getSelectedHeroes() {
+    return heroes.filter(h => selectedIds.has(String(h.id)));
+}
+
+function updateSelectedInfo() {
+    document.getElementById('selectedInfo').textContent = `已选 ${selectedIds.size} 个`;
+}
+
+function clearSelected() {
+    if (!selectedIds.size) return;
+
+    if (!confirm('确定要清空所有已选武将吗？')) return;
+
+    selectedIds.clear();
+    render();
+}
+
+function copySelectedJson() {
+    const selected = getSelectedHeroes();
+
+    if (!selected.length) {
+        alert('还没有选择任何武将');
+        return;
+    }
+
+    const text = JSON.stringify(selected, null, 2);
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert(`已复制 ${selected.length} 个武将的 JSON 数据`);
+    }).catch(() => {
+        prompt('复制失败，请手动复制：', text);
+    });
+}
+
+function buildSelectedHtml() {
+    const selected = getSelectedHeroes();
+
+    const dataJson = JSON.stringify(selected)
+        .replace(/</g, '\\u003c')
+        .replace(/>/g, '\\u003e')
+        .replace(/&/g, '\\u0026');
+
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>已选武将列表</title>
+<style>
+:root {
+    --bg-dark: #121212;
+    --gold: #d4af37;
+    --text-main: #e0e0e0;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: #121212;
+    background-image: radial-gradient(circle at center, #2a2a2a 0%, #121212 100%);
+    color: var(--text-main);
+    font-family: "Microsoft YaHei", sans-serif;
+}
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(18,18,18,.96);
+    border-bottom: 2px solid #aa8c2c;
+    padding: 16px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.6);
+}
+.inner {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+h1 {
+    margin: 0 0 6px 0;
+    color: var(--gold);
+    font-size: 22px;
+}
+.info {
+    color: #aaa;
+    font-size: 14px;
+}
+.grid {
+    display: grid;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 22px 20px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 20px;
+}
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.avatar-wrap {
+    width: 100px;
+    height: 100px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #333;
+    background: #000;
+    position: relative;
+}
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.name {
+    margin-top: 9px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+}
+.meta {
+    margin-top: 3px;
+    color: #888;
+    font-size: 11px;
+    text-align: center;
+}
+.recent-tag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #8b0000;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 0 0 0 8px;
+}
+@media (max-width: 768px) {
+    h1 { font-size: 18px; }
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+        gap: 13px;
+        padding: 15px 12px;
+    }
+    .avatar-wrap {
+        width: 85px;
+        height: 85px;
+    }
+    .name {
+        font-size: 12px;
+    }
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <div class="inner">
+        <h1>已选武将列表</h1>
+        <div class="info" id="info"></div>
+    </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const selectedHeroes = ${dataJson};
+
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function imgUrl(h) {
+    const useId = h.useId || h.id;
+    return 'https://web.sanguosha.com/220/h5_2/res/runtime/pc/general/skinShop/' + useId + '00.png';
+}
+
+function backupUrl(h) {
+    const useId = h.useId || h.id;
+    return 'https://web.sanguosha.com/220/h5_2/res/runtime/pc/activity/shequshow/xingxiang/' + useId + '00.png';
+}
+
+function render() {
+    document.getElementById('info').textContent = '共 ' + selectedHeroes.length + ' 个武将';
+
+    const grid = document.getElementById('grid');
+    const frag = document.createDocumentFragment();
+
+    selectedHeroes.forEach(h => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        card.innerHTML = \`
+            <div class="avatar-wrap">
+                <img class="avatar" loading="lazy"
+                     src="\${escapeHtml(imgUrl(h))}"
+                     onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='\${escapeHtml(backupUrl(h))}';}else{this.onerror=null;this.style.opacity='0';this.parentNode.style.background='#222';this.parentNode.innerHTML+='<div style=&quot;color:#777;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:bold;&quot;>暂无图</div>';}">
+                \${h.updateTime === 'recent' ? '<div class="recent-tag">NEW</div>' : ''}
+            </div>
+            <div class="name">\${escapeHtml(h.fullName)}</div>
+            <div class="meta">\${escapeHtml(h.quality || '')} · \${escapeHtml(h.finalJd || h.jiangdeng || '')}</div>
+        \`;
+
+        frag.appendChild(card);
+    });
+
+    grid.appendChild(frag);
+}
+
+render();
+<\/script>
+</body>
+</html>`;
+}
+
+function openSelectedPage() {
+    const selected = getSelectedHeroes();
+
+    if (!selected.length) {
+        alert('还没有选择任何武将');
+        return;
+    }
+
+    const html = buildSelectedHtml();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    window.open(url, '_blank');
+}
+
+function downloadSelectedHtml() {
+    const selected = getSelectedHeroes();
+
+    if (!selected.length) {
+        alert('还没有选择任何武将');
+        return;
+    }
+
+    const html = buildSelectedHtml();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `已选武将列表_${selected.length}人.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('recentCheck').addEventListener('change', render);
+
+buildFilterUI();
+render();
+</script>
+
+</body>
+</html>
